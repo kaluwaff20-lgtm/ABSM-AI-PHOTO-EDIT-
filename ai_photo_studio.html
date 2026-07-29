@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina AI Photo Studio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f3ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#1e1b4b',
+                            accent: '#a855f7'
+                        },
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b',
+                        darkborder: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Custom Range Input */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+        /* Glassmorphism effects */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Canvas Container Checkerboard pattern for transparency */
+        .canvas-bg {
+            background-color: #0b0f19;
+            background-image: 
+                linear-gradient(45deg, #161e2e 25%, transparent 25%), 
+                linear-gradient(-45deg, #161e2e 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #161e2e 75%), 
+                linear-gradient(-45deg, transparent 75%, #161e2e 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .shimmer-btn {
+            background: linear-gradient(90deg, #6366f1, #a855f7, #6366f1);
+            background-size: 200% 100%;
+            animation: shimmer 3s infinite linear;
+        }
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Header Navigation -->
+    <header class="h-16 border-b border-darkborder bg-slate-900/90 px-4 flex items-center justify-between z-30 shrink-0">
+        <!-- Logo & Branding -->
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <i class="fa-solid font-bold text-white text-lg fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent flex items-center gap-2">
+                    Lumina Studio <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-500 border border-brand-500/30 uppercase tracking-widest">AI 3.1</span>
+                </h1>
+                <p class="text-[11px] text-slate-400 font-medium">Next-Gen Generative & Canvas Photo Editor</p>
+            </div>
+        </div>
+
+        <!-- Center Quick Actions & Tools -->
+        <div class="hidden md:flex items-center space-x-2 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button id="btn-undo" onclick="undo()" class="px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs flex items-center gap-1.5 disabled:opacity-40" disabled>
+                <i class="fa-solid fa-rotate-left"></i> Undo
+            </button>
+            <button id="btn-redo" onclick="redo()" class="px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs flex items-center gap-1.5 disabled:opacity-40" disabled>
+                <i class="fa-solid fa-rotate-right"></i> Redo
+            </button>
+            <div class="h-4 w-[1px] bg-slate-700 mx-1"></div>
+            <button id="btn-compare" onclick="toggleCompareMode()" class="px-3 py-1.5 rounded-lg hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-columns"></i> <span id="compare-txt">Split Compare</span>
+            </button>
+            <button onclick="resetAllAdjustments()" class="px-3 py-1.5 rounded-lg hover:bg-slate-700 text-rose-400 hover:text-rose-300 transition text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Reset Changes
+            </button>
+        </div>
+
+        <!-- Right Side Upload & Export -->
+        <div class="flex items-center space-x-3">
+            <!-- Sample Loader Dropdown -->
+            <div class="relative group">
+                <button class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700/80 transition flex items-center gap-1.5">
+                    <i class="fa-regular fa-image"></i> Sample Photos <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                </button>
+                <div class="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-2 hidden group-hover:block z-50">
+                    <button onclick="loadSampleImage('portrait')" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-slate-700 flex items-center gap-2 text-slate-200">
+                        <i class="fa-solid fa-user text-brand-500"></i> Cyber Portrait
+                    </button>
+                    <button onclick="loadSampleImage('landscape')" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-slate-700 flex items-center gap-2 text-slate-200">
+                        <i class="fa-solid fa-mountain-sun text-emerald-500"></i> Nature Landscape
+                    </button>
+                    <button onclick="loadSampleImage('car')" class="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-slate-700 flex items-center gap-2 text-slate-200">
+                        <i class="fa-solid fa-car text-amber-500"></i> Futuristic Car
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Button -->
+            <label for="image-upload" class="cursor-pointer px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-upload text-brand-500"></i> Upload
+                <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+            </label>
+
+            <!-- Export Button -->
+            <button onclick="exportImage()" class="px-4 py-2 rounded-xl shimmer-btn text-white text-xs font-bold shadow-lg shadow-brand-500/20 hover:opacity-95 transition flex items-center gap-2">
+                <i class="fa-solid fa-download"></i> Export
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Studio Layout -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Left Tool Tab Navigation -->
+        <nav class="w-16 bg-slate-900 border-r border-darkborder flex flex-col items-center py-4 space-y-4 shrink-0 z-20">
+            <button onclick="switchTab('ai-tab')" id="nav-ai-tab" class="tool-tab-btn active p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition relative flex flex-col items-center gap-1 group text-brand-500 bg-brand-500/10">
+                <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                <span class="text-[9px] font-semibold">AI Magic</span>
+            </button>
+            <button onclick="switchTab('adjust-tab')" id="nav-adjust-tab" class="tool-tab-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition relative flex flex-col items-center gap-1 group">
+                <i class="fa-solid fa-sliders text-lg"></i>
+                <span class="text-[9px] font-semibold">Adjust</span>
+            </button>
+            <button onclick="switchTab('filter-tab')" id="nav-filter-tab" class="tool-tab-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition relative flex flex-col items-center gap-1 group">
+                <i class="fa-solid fa-palette text-lg"></i>
+                <span class="text-[9px] font-semibold">Filters</span>
+            </button>
+            <button onclick="switchTab('crop-tab')" id="nav-crop-tab" class="tool-tab-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition relative flex flex-col items-center gap-1 group">
+                <i class="fa-solid fa-crop-simple text-lg"></i>
+                <span class="text-[9px] font-semibold">Crop</span>
+            </button>
+            <button onclick="switchTab('inpaint-tab')" id="nav-inpaint-tab" class="tool-tab-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition relative flex flex-col items-center gap-1 group">
+                <i class="fa-solid fa-paintbrush text-lg"></i>
+                <span class="text-[9px] font-semibold">Brush fill</span>
+            </button>
+            <button onclick="switchTab('generate-tab')" id="nav-generate-tab" class="tool-tab-btn p-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition relative flex flex-col items-center gap-1 group">
+                <i class="fa-solid fa-image text-lg"></i>
+                <span class="text-[9px] font-semibold">Generate</span>
+            </button>
+        </nav>
+
+        <!-- Control Sidebar Panel -->
+        <aside class="w-80 bg-slate-900/95 border-r border-darkborder flex flex-col shrink-0 z-10 overflow-y-auto">
+            
+            <!-- 1. AI MAGIC TAB -->
+            <div id="ai-tab" class="tab-content p-4 space-y-5">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-brand-500"></i> AI Generative Studio
+                    </h2>
+                    <span class="text-[10px] bg-brand-500/20 text-brand-400 font-bold px-2 py-0.5 rounded-full border border-brand-500/30">Gemini 3.1</span>
+                </div>
+
+                <!-- Custom Prompt Transformer -->
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                        <span>Natural Language Edit</span>
+                        <span class="text-[10px] text-slate-500">AI Prompt</span>
+                    </label>
+                    <div class="relative">
+                        <textarea id="ai-prompt" rows="3" placeholder="Describe how to modify the photo... (e.g. 'Add glowing cyberpunk neon lighting and rain reflections' or 'Replace background with a tropical beach')" class="w-full bg-slate-800 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-brand-500 resize-none transition shadow-inner placeholder-slate-500"></textarea>
+                    </div>
+                    <!-- Quick Preset Prompts -->
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                        <button onclick="setPromptPreset('Change background to a futuristic neon Tokyo street at night')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md border border-slate-700/60 transition">
+                            🌆 Neon Tokyo
+                        </button>
+                        <button onclick="setPromptPreset('Add dramatic cinematic studio relighting with golden hour glow')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md border border-slate-700/60 transition">
+                            🌅 Golden Hour
+                        </button>
+                        <button onclick="setPromptPreset('Transform image into a vibrant Japanese anime studio art style')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md border border-slate-700/60 transition">
+                            🎨 Anime Style
+                        </button>
+                        <button onclick="setPromptPreset('Enhance details, upscale clarity, crisp focus, hyperrealistic HD')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md border border-slate-700/60 transition">
+                            ✨ Upscale & Enhance
+                        </button>
+                    </div>
+                    <button onclick="applyAiEdit()" id="btn-ai-apply" class="w-full mt-2 py-2.5 rounded-xl shimmer-btn text-white font-bold text-xs shadow-md hover:opacity-90 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bolt"></i> Generate AI Edit
+                    </button>
+                </div>
+
+                <div class="border-t border-slate-800 pt-4 space-y-3">
+                    <h3 class="text-xs font-semibold text-slate-300">Style Transfer Presets</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="applyAiPresetStyle('Cyberpunk Synthwave aesthetic, neon magenta and cyan lighting, futuristic city vibes')" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-left transition group">
+                            <p class="text-xs font-bold text-slate-200 group-hover:text-brand-400">⚡ Cyberpunk</p>
+                            <p class="text-[10px] text-slate-400">Neon glow & futuristic atmosphere</p>
+                        </button>
+                        <button onclick="applyAiPresetStyle('Convert to vintage 1970s analog film print, film grain, warm nostalgic color tone')" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-left transition group">
+                            <p class="text-xs font-bold text-slate-200 group-hover:text-amber-400">🎞️ Retro Film</p>
+                            <p class="text-[10px] text-slate-400">70s warm grain & soft contrast</p>
+                        </button>
+                        <button onclick="applyAiPresetStyle('Fine art watercolor painting style, vibrant pastel splashes, artistic paper texture')" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-left transition group">
+                            <p class="text-xs font-bold text-slate-200 group-hover:text-pink-400">🎨 Watercolor</p>
+                            <p class="text-[10px] text-slate-400">Vibrant artistic brush painting</p>
+                        </button>
+                        <button onclick="applyAiPresetStyle('3D Pixar style animated render, stylized glossy features, vibrant dramatic lighting')" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 text-left transition group">
+                            <p class="text-xs font-bold text-slate-200 group-hover:text-indigo-400">🧸 3D Render</p>
+                            <p class="text-[10px] text-slate-400">Stylized animated studio 3D</p>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-800 pt-4 space-y-3">
+                    <h3 class="text-xs font-semibold text-slate-300">Instant AI Magic Tools</h3>
+                    <div class="space-y-2">
+                        <button onclick="applyAiPresetStyle('Remove current background and replace with an elegant minimalist studio neutral gray background')" class="w-full text-left px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700/60 flex items-center justify-between transition">
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-user-gear text-purple-400"></i> Studio Background Swap</span>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                        </button>
+                        <button onclick="applyAiPresetStyle('Colorize black and white image with natural vibrant true-to-life color palette')" class="w-full text-left px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700/60 flex items-center justify-between transition">
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-palette text-emerald-400"></i> AI Colorize B&W</span>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                        </button>
+                        <button onclick="applyAiPresetStyle('Change season to snowy winter landscape with soft snowfall atmosphere')" class="w-full text-left px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700/60 flex items-center justify-between transition">
+                            <span class="flex items-center gap-2"><i class="fa-solid fa-snowflake text-sky-400"></i> Winter Season Transform</span>
+                            <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. MANUAL ADJUSTMENTS TAB -->
+            <div id="adjust-tab" class="tab-content p-4 space-y-5 hidden">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-brand-500"></i> Canvas Adjustments
+                    </h2>
+                    <button onclick="resetSliders()" class="text-[10px] text-brand-400 hover:underline">Reset Sliders</button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Brightness -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Brightness</span>
+                            <span id="val-brightness" class="font-mono text-brand-400">0</span>
+                        </div>
+                        <input type="range" id="adj-brightness" min="-100" max="100" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+
+                    <!-- Contrast -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Contrast</span>
+                            <span id="val-contrast" class="font-mono text-brand-400">0</span>
+                        </div>
+                        <input type="range" id="adj-contrast" min="-100" max="100" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+
+                    <!-- Saturation -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Saturation</span>
+                            <span id="val-saturation" class="font-mono text-brand-400">0</span>
+                        </div>
+                        <input type="range" id="adj-saturation" min="-100" max="100" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+
+                    <!-- Exposure / Warmth -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Temperature / Warmth</span>
+                            <span id="val-warmth" class="font-mono text-brand-400">0</span>
+                        </div>
+                        <input type="range" id="adj-warmth" min="-100" max="100" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+
+                    <!-- Hue Rotate -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Hue Shift</span>
+                            <span id="val-hue" class="font-mono text-brand-400">0°</span>
+                        </div>
+                        <input type="range" id="adj-hue" min="-180" max="180" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+
+                    <!-- Blur -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Soft Blur</span>
+                            <span id="val-blur" class="font-mono text-brand-400">0px</span>
+                        </div>
+                        <input type="range" id="adj-blur" min="0" max="20" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+
+                    <!-- Vignette -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Vignette</span>
+                            <span id="val-vignette" class="font-mono text-brand-400">0</span>
+                        </div>
+                        <input type="range" id="adj-vignette" min="0" max="100" value="0" oninput="onAdjustmentChange()" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. FILTERS TAB -->
+            <div id="filter-tab" class="tab-content p-4 space-y-4 hidden">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-palette text-brand-500"></i> Color Preset Filters
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5" id="filter-presets-grid">
+                    <!-- Dynamic Preset Buttons -->
+                </div>
+            </div>
+
+            <!-- 4. CROP & ROTATE TAB -->
+            <div id="crop-tab" class="tab-content p-4 space-y-5 hidden">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-crop-simple text-brand-500"></i> Transform & Crop
+                    </h2>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-xs font-semibold text-slate-300">Quick Orientations</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="rotateCanvas(-90)" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-200 border border-slate-700 flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-rotate-left"></i> Rotate -90°
+                        </button>
+                        <button onclick="rotateCanvas(90)" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-200 border border-slate-700 flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-rotate-right"></i> Rotate +90°
+                        </button>
+                        <button onclick="flipCanvas('h')" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-200 border border-slate-700 flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-arrows-left-right"></i> Flip Horiz
+                        </button>
+                        <button onclick="flipCanvas('v')" class="p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-medium text-slate-200 border border-slate-700 flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-arrows-up-down"></i> Flip Vert
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pt-2 border-t border-slate-800">
+                    <label class="text-xs font-semibold text-slate-300">Aspect Ratio Crop</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="applyCropRatio(1)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 text-center">1:1 Square</button>
+                        <button onclick="applyCropRatio(4/5)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 text-center">4:5 Portrait</button>
+                        <button onclick="applyCropRatio(16/9)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 text-center">16:9 Wide</button>
+                        <button onclick="applyCropRatio(9/16)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 text-center">9:16 Story</button>
+                        <button onclick="applyCropRatio(4/3)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 text-center">4:3 Photo</button>
+                        <button onclick="applyCropRatio(3/2)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 text-center">3:2 DSLR</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. INPAINT BRUSH TAB -->
+            <div id="inpaint-tab" class="tab-content p-4 space-y-4 hidden">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-paintbrush text-brand-500"></i> Generative Inpainting Brush
+                    </h2>
+                    <p class="text-[11px] text-slate-400 mt-1">Paint over an area to modify or replace specific objects with AI.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-slate-300">Brush Mode</label>
+                        <span id="brush-status" class="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Brush Active</span>
+                    </div>
+
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs text-slate-300">
+                            <span>Brush Thickness</span>
+                            <span id="brush-size-val" class="font-mono text-brand-400">30px</span>
+                        </div>
+                        <input type="range" id="brush-size" min="10" max="100" value="30" oninput="updateBrushSize(this.value)" class="w-full">
+                    </div>
+
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="clearMask()" class="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-rose-300 font-medium transition flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-trash"></i> Clear Mask
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-800">
+                        <label class="text-xs font-semibold text-slate-300">Inpaint Instructions</label>
+                        <input type="text" id="inpaint-prompt" placeholder="What to put/change in painted area? (e.g. 'Add a red floral brooch' or 'Remove subject')" class="w-full bg-slate-800 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-brand-500">
+                        <button onclick="executeInpaint()" class="w-full py-2.5 rounded-xl shimmer-btn text-white font-bold text-xs shadow-md hover:opacity-90 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Replace Selected Area
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. GENERATE FROM SCRATCH TAB -->
+            <div id="generate-tab" class="tab-content p-4 space-y-4 hidden">
+                <div class="border-b border-slate-800 pb-3">
+                    <h2 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-sparkles text-brand-500"></i> Text to Image Studio
+                    </h2>
+                    <p class="text-[11px] text-slate-400 mt-1">Generate brand new artwork or photos from scratch using Gemini 3.1 AI.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-300">Text Prompt</label>
+                        <textarea id="gen-prompt" rows="4" placeholder="Describe the image you want to generate in detail... (e.g., 'A majestic cyberpunk samurai standing in misty neon rain, 8k hyperrealistic photo')" class="w-full bg-slate-800 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-brand-500 resize-none shadow-inner"></textarea>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-300">Aspect Ratio</label>
+                        <select id="gen-aspect" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+                            <option value="1:1">1:1 Square</option>
+                            <option value="16:9" selected>16:9 Widescreen</option>
+                            <option value="9:16">9:16 Portrait / Story</option>
+                            <option value="4:3">4:3 Standard</option>
+                        </select>
+                    </div>
+
+                    <button onclick="generateImageFromText()" class="w-full py-3 rounded-xl shimmer-btn text-white font-bold text-xs shadow-lg hover:opacity-90 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-palette"></i> Generate New Image
+                    </button>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Center Workspace / Canvas Area -->
+        <main class="flex-1 flex flex-col relative canvas-bg overflow-hidden justify-center items-center p-6">
+
+            <!-- Floating Viewport Controls Header -->
+            <div class="absolute top-4 bg-slate-900/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-slate-800 shadow-xl flex items-center space-x-4 z-20">
+                <div class="flex items-center space-x-2 border-r border-slate-800 pr-3">
+                    <button onclick="zoomCanvas(-0.1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center justify-center transition">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <span id="zoom-level" class="text-xs font-mono font-bold text-slate-200 w-12 text-center">100%</span>
+                    <button onclick="zoomCanvas(0.1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center justify-center transition">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button onclick="resetZoom()" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-[10px] font-semibold transition">
+                        Fit
+                    </button>
+                </div>
+
+                <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+                    <span id="img-dimensions">0 x 0 px</span>
+                </div>
+            </div>
+
+            <!-- Canvas Container Wrapper -->
+            <div id="workspace-container" class="relative max-w-full max-h-full flex items-center justify-center transition-all duration-200">
+                
+                <!-- Main Composite Canvas -->
+                <canvas id="main-canvas" class="max-w-full max-h-[75vh] object-contain shadow-2xl rounded-lg border border-slate-800/80 cursor-crosshair"></canvas>
+                
+                <!-- Inpaint Mask Overlay Canvas -->
+                <canvas id="mask-canvas" class="absolute top-0 left-0 max-w-full max-h-[75vh] object-contain rounded-lg pointer-events-none opacity-60"></canvas>
+
+                <!-- Before / After Comparison Slider Container -->
+                <div id="compare-container" class="absolute inset-0 max-w-full max-h-[75vh] overflow-hidden hidden pointer-events-auto rounded-lg">
+                    <img id="compare-before-img" class="w-full h-full object-contain pointer-events-none" alt="Before">
+                    <div id="compare-divider" class="absolute top-0 bottom-0 w-0.5 bg-brand-500 shadow-[0_0_10px_#6366f1] cursor-ew-resize">
+                        <div class="w-7 h-7 -ml-3.5 top-1/2 -translate-y-1/2 relative bg-slate-900 border-2 border-brand-500 rounded-full flex items-center justify-center shadow-xl">
+                            <i class="fa-solid fa-left-right text-[10px] text-brand-400"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Spinner Overlay -->
+                <div id="ai-loader" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md rounded-lg flex flex-col items-center justify-center space-y-4 z-40 hidden">
+                    <div class="relative">
+                        <div class="w-16 h-16 rounded-full border-4 border-brand-500/20 border-t-brand-500 animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <i class="fa-solid fa-wand-magic-sparkles text-brand-400 animate-pulse text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="text-center space-y-1">
+                        <p id="loader-status" class="text-sm font-bold text-slate-100">Processing AI Edit...</p>
+                        <p id="loader-subtext" class="text-xs text-slate-400">Gemini 3.1 Flash Image synthesis in progress</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Toast Notification -->
+            <div id="toast-msg" class="fixed bottom-6 right-6 bg-slate-800 text-slate-100 text-xs px-4 py-3 rounded-xl border border-slate-700 shadow-2xl flex items-center gap-2 transition-all transform translate-y-20 opacity-0 z-50">
+                <i id="toast-icon" class="fa-solid fa-circle-info text-brand-400"></i>
+                <span id="toast-text">Notification message</span>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Core Canvas and Image elements
+        const mainCanvas = document.getElementById('main-canvas');
+        const ctx = mainCanvas.getContext('2d');
+        const maskCanvas = document.getElementById('mask-canvas');
+        const maskCtx = maskCanvas.getContext('2d');
+
+        // Application State
+        let currentImage = new Image();
+        let originalImageDataUrl = '';
+        let historyStack = [];
+        let historyIndex = -1;
+        let isImageLoaded = false;
+
+        // Viewport Pan & Zoom state
+        let zoomLevel = 1.0;
+
+        // Inpaint state
+        let isInpaintingMode = false;
+        let isDrawingMask = false;
+        let brushSize = 30;
+
+        // Compare Mode State
+        let isCompareMode = false;
+
+        // Active Canvas Adjustments Object
+        let adjustments = {
+            brightness: 0,
+            contrast: 0,
+            saturation: 0,
+            warmth: 0,
+            hue: 0,
+            blur: 0,
+            vignette: 0
+        };
+
+        // Standard Filter Presets Definitions
+        const FILTER_PRESETS = [
+            { name: 'Normal', filter: 'none', icon: '✨' },
+            { name: 'Cyber Neon', filter: 'hue-rotate(180deg) contrast(130%) saturate(150%)', icon: '🌆' },
+            { name: 'Warm Vintage', filter: 'sepia(40%) contrast(110%) brightness(105%)', icon: '🌅' },
+            { name: 'Noir Monochr', filter: 'grayscale(100%) contrast(140%)', icon: '🎬' },
+            { name: 'Pastel Dream', filter: 'saturate(140%) brightness(115%) contrast(90%)', icon: '🌸' },
+            { name: 'Dramatic Dark', filter: 'contrast(150%) brightness(85%) saturate(110%)', icon: '⚡' },
+            { name: 'Vivid Nature', filter: 'saturate(180%) contrast(110%)', icon: '🌿' },
+            { name: 'Cool Film', filter: 'hue-rotate(-20deg) contrast(115%) brightness(95%)', icon: '🧊' }
+        ];
+
+        window.onload = function() {
+            renderFilterPresets();
+            setupMaskEventListeners();
+            loadSampleImage('portrait');
+        };
+
+        // Render Filter Preset Grid
+        function renderFilterPresets() {
+            const grid = document.getElementById('filter-presets-grid');
+            grid.innerHTML = '';
+            FILTER_PRESETS.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'p-3 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700/80 text-left transition flex flex-col justify-between group';
+                btn.onclick = () => applyPresetFilter(p.filter);
+                btn.innerHTML = `
+                    <span class="text-lg">${p.icon}</span>
+                    <span class="text-xs font-bold text-slate-200 group-hover:text-brand-400 mt-2">${p.name}</span>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        function loadSampleImage(type) {
+            showLoader("Loading sample photo...", "Preparing high-res image canvas");
+            
+            // High quality placeholder images from Unsplash
+            let sampleUrls = {
+                portrait: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80',
+                landscape: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+                car: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=1200&q=80'
+            };
+
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = function() {
+                initCanvasWithImage(img);
+                hideLoader();
+                showToast("Sample photo loaded successfully!");
+            };
+            img.onerror = function() {
+                hideLoader();
+                showToast("Failed to load sample image.", "error");
+            };
+            img.src = sampleUrls[type] || sampleUrls.portrait;
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    initCanvasWithImage(img);
+                    showToast("Uploaded photo loaded!");
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function initCanvasWithImage(img) {
+            currentImage = img;
+            mainCanvas.width = img.naturalWidth || img.width;
+            mainCanvas.height = img.naturalHeight || img.height;
+            maskCanvas.width = mainCanvas.width;
+            maskCanvas.height = mainCanvas.height;
+
+            document.getElementById('img-dimensions').innerText = `${mainCanvas.width} x ${mainCanvas.height} px`;
+
+            // Draw original image to canvas
+            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            originalImageDataUrl = mainCanvas.toDataURL('image/png');
+            isImageLoaded = true;
+
+            // Reset history
+            historyStack = [originalImageDataUrl];
+            historyIndex = 0;
+            updateUndoRedoButtons();
+            resetSliders();
+            clearMask();
+        }
+
+        function onAdjustmentChange() {
+            adjustments.brightness = parseInt(document.getElementById('adj-brightness').value);
+            adjustments.contrast = parseInt(document.getElementById('adj-contrast').value);
+            adjustments.saturation = parseInt(document.getElementById('adj-saturation').value);
+            adjustments.warmth = parseInt(document.getElementById('adj-warmth').value);
+            adjustments.hue = parseInt(document.getElementById('adj-hue').value);
+            adjustments.blur = parseInt(document.getElementById('adj-blur').value);
+            adjustments.vignette = parseInt(document.getElementById('adj-vignette').value);
+
+            // Update UI labels
+            document.getElementById('val-brightness').innerText = adjustments.brightness;
+            document.getElementById('val-contrast').innerText = adjustments.contrast;
+            document.getElementById('val-saturation').innerText = adjustments.saturation;
+            document.getElementById('val-warmth').innerText = adjustments.warmth;
+            document.getElementById('val-hue').innerText = adjustments.hue + '°';
+            document.getElementById('val-blur').innerText = adjustments.blur + 'px';
+            document.getElementById('val-vignette').innerText = adjustments.vignette;
+
+            renderCanvas();
+        }
+
+        function renderCanvas() {
+            if (!isImageLoaded) return;
+
+            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+            // Build CSS Filter String
+            let b = 100 + adjustments.brightness;
+            let c = 100 + adjustments.contrast;
+            let s = 100 + adjustments.saturation;
+            let h = adjustments.hue;
+            let bl = adjustments.blur;
+
+            ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%) hue-rotate(${h}deg) blur(${bl}px)`;
+            ctx.drawImage(currentImage, 0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.filter = 'none';
+
+            // Apply Warmth / Temperature Overlay
+            if (adjustments.warmth !== 0) {
+                ctx.save();
+                if (adjustments.warmth > 0) {
+                    ctx.fillStyle = `rgba(255, 165, 0, ${adjustments.warmth / 300})`;
+                } else {
+                    ctx.fillStyle = `rgba(0, 150, 255, ${Math.abs(adjustments.warmth) / 300})`;
+                }
+                ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+                ctx.restore();
+            }
+
+            // Apply Vignette Effect
+            if (adjustments.vignette > 0) {
+                ctx.save();
+                let outerRadius = Math.max(mainCanvas.width, mainCanvas.height) / 1.2;
+                let gradient = ctx.createRadialGradient(
+                    mainCanvas.width / 2, mainCanvas.height / 2, 10,
+                    mainCanvas.width / 2, mainCanvas.height / 2, outerRadius
+                );
+                gradient.addColorStop(0, 'rgba(0,0,0,0)');
+                gradient.addColorStop(1, `rgba(0,0,0,${adjustments.vignette / 100})`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+                ctx.restore();
+            }
+        }
+
+        function applyPresetFilter(filterStr) {
+            if (!isImageLoaded) return;
+            ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.filter = filterStr;
+            ctx.drawImage(currentImage, 0, 0, mainCanvas.width, mainCanvas.height);
+            ctx.filter = 'none';
+            
+            pushHistoryState();
+            showToast("Filter applied!");
+        }
+
+        function resetSliders() {
+            adjustments = { brightness: 0, contrast: 0, saturation: 0, warmth: 0, hue: 0, blur: 0, vignette: 0 };
+            document.querySelectorAll('#adjust-tab input[type=range]').forEach(input => input.value = 0);
+            document.getElementById('val-brightness').innerText = '0';
+            document.getElementById('val-contrast').innerText = '0';
+            document.getElementById('val-saturation').innerText = '0';
+            document.getElementById('val-warmth').innerText = '0';
+            document.getElementById('val-hue').innerText = '0°';
+            document.getElementById('val-blur').innerText = '0px';
+            document.getElementById('val-vignette').innerText = '0';
+            if (isImageLoaded) renderCanvas();
+        }
+
+        function resetAllAdjustments() {
+            resetSliders();
+            if (originalImageDataUrl) {
+                const img = new Image();
+                img.onload = function() {
+                    initCanvasWithImage(img);
+                    showToast("Reset to original image");
+                };
+                img.src = originalImageDataUrl;
+            }
+        }
+
+        function rotateCanvas(degrees) {
+            if (!isImageLoaded) return;
+            
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            if (Math.abs(degrees) === 90) {
+                tempCanvas.width = mainCanvas.height;
+                tempCanvas.height = mainCanvas.width;
+            } else {
+                tempCanvas.width = mainCanvas.width;
+                tempCanvas.height = mainCanvas.height;
+            }
+
+            tempCtx.translate(tempCanvas.width / 2, tempCanvas.height / 2);
+            tempCtx.rotate((degrees * Math.PI) / 180);
+            tempCtx.drawImage(mainCanvas, -mainCanvas.width / 2, -mainCanvas.height / 2);
+
+            const newImg = new Image();
+            newImg.onload = function() {
+                initCanvasWithImage(newImg);
+                pushHistoryState();
+            };
+            newImg.src = tempCanvas.toDataURL();
+        }
+
+        function flipCanvas(dir) {
+            if (!isImageLoaded) return;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = mainCanvas.width;
+            tempCanvas.height = mainCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            tempCtx.translate(dir === 'h' ? mainCanvas.width : 0, dir === 'v' ? mainCanvas.height : 0);
+            tempCtx.scale(dir === 'h' ? -1 : 1, dir === 'v' ? -1 : 1);
+            tempCtx.drawImage(mainCanvas, 0, 0);
+
+            const newImg = new Image();
+            newImg.onload = function() {
+                initCanvasWithImage(newImg);
+                pushHistoryState();
+            };
+            newImg.src = tempCanvas.toDataURL();
+        }
+
+        function applyCropRatio(ratio) {
+            if (!isImageLoaded) return;
+            let cropW = mainCanvas.width;
+            let cropH = cropW / ratio;
+
+            if (cropH > mainCanvas.height) {
+                cropH = mainCanvas.height;
+                cropW = cropH * ratio;
+            }
+
+            const cropX = (mainCanvas.width - cropW) / 2;
+            const cropY = (mainCanvas.height - cropH) / 2;
+
+            const croppedCanvas = document.createElement('canvas');
+            croppedCanvas.width = cropW;
+            croppedCanvas.height = cropH;
+            const croppedCtx = croppedCanvas.getContext('2d');
+
+            croppedCtx.drawImage(mainCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+            const newImg = new Image();
+            newImg.onload = function() {
+                initCanvasWithImage(newImg);
+                pushHistoryState();
+                showToast("Aspect ratio crop applied!");
+            };
+            newImg.src = croppedCanvas.toDataURL();
+        }
+
+        function setupMaskEventListeners() {
+            mainCanvas.addEventListener('mousedown', startDrawingMask);
+            mainCanvas.addEventListener('mousemove', drawMask);
+            mainCanvas.addEventListener('mouseup', stopDrawingMask);
+            mainCanvas.addEventListener('mouseleave', stopDrawingMask);
+        }
+
+        function updateBrushSize(val) {
+            brushSize = parseInt(val);
+            document.getElementById('brush-size-val').innerText = `${brushSize}px`;
+        }
+
+        function startDrawingMask(e) {
+            if (!isInpaintingMode) return;
+            isDrawingMask = true;
+            drawMask(e);
+        }
+
+        function drawMask(e) {
+            if (!isDrawingMask || !isInpaintingMode) return;
+            const rect = mainCanvas.getBoundingClientRect();
+            const scaleX = mainCanvas.width / rect.width;
+            const scaleY = mainCanvas.height / rect.height;
+
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            maskCtx.fillStyle = '#f43f5e'; // Vibrant rose mask color
+            maskCtx.beginPath();
+            maskCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+            maskCtx.fill();
+        }
+
+        function stopDrawingMask() {
+            isDrawingMask = false;
+        }
+
+        function clearMask() {
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        }
+
+        // AI Edit with Gemini 3.1 Flash Image API
+        async function applyAiEdit() {
+            const promptInput = document.getElementById('ai-prompt').value.trim();
+            if (!promptInput) {
+                showToast("Please enter an AI prompt description first!", "error");
+                return;
+            }
+
+            showLoader("Gemini 3.1 AI Generating...", "Synthesizing generative transformation");
+
+            try {
+                // Get base64 payload from canvas
+                const currentBase64 = mainCanvas.toDataURL('image/png').split(',')[1];
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: promptInput + ". Produce a high quality, hyperrealistic modified photo based on this instruction." },
+                            {
+                                inlineData: {
+                                    mimeType: "image/png",
+                                    data: currentBase64
+                                }
+                            }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['TEXT', 'IMAGE']
+                    }
+                };
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                // Find generated image in response
+                const imagePart = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+                if (imagePart && imagePart.inlineData) {
+                    const newBase64 = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                    const img = new Image();
+                    img.onload = function() {
+                        initCanvasWithImage(img);
+                        pushHistoryState();
+                        hideLoader();
+                        showToast("AI Edit completed successfully!");
+                    };
+                    img.src = newBase64;
+                } else {
+                    throw new Error("No image generated by AI model.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                hideLoader();
+                showToast("AI Edit failed: " + (err.message || "Api error"), "error");
+            }
+        }
+
+        function setPromptPreset(text) {
+            document.getElementById('ai-prompt').value = text;
+        }
+
+        function applyAiPresetStyle(styleDesc) {
+            document.getElementById('ai-prompt').value = styleDesc;
+            applyAiEdit();
+        }
+
+        // Execute Inpainting with Painted Mask
+        async function executeInpaint() {
+            const prompt = document.getElementById('inpaint-prompt').value.trim();
+            if (!prompt) {
+                showToast("Enter instructions for the painted area", "error");
+                return;
+            }
+
+            showLoader("Applying Generative Fill...", "Editing selected mask area");
+
+            try {
+                // Blend image and mask for prompt context
+                const base64Img = mainCanvas.toDataURL('image/png').split(',')[1];
+
+                const fullPrompt = `Edit the provided photo. Apply the following modification specifically to the highlighted red painted mask region: ${prompt}`;
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: fullPrompt },
+                            {
+                                inlineData: {
+                                    mimeType: "image/png",
+                                    data: base64Img
+                                }
+                            }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['TEXT', 'IMAGE']
+                    }
+                };
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const imagePart = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+                if (imagePart && imagePart.inlineData) {
+                    const newBase64 = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                    const img = new Image();
+                    img.onload = function() {
+                        initCanvasWithImage(img);
+                        pushHistoryState();
+                        clearMask();
+                        hideLoader();
+                        showToast("Inpaint complete!");
+                    };
+                    img.src = newBase64;
+                } else {
+                    throw new Error("Generative inpaint response empty");
+                }
+            } catch (e) {
+                console.error(e);
+                hideLoader();
+                showToast("Inpaint error: " + e.message, "error");
+            }
+        }
+
+        // Generate Image from Scratch with Gemini 3.1
+        async function generateImageFromText() {
+            const prompt = document.getElementById('gen-prompt').value.trim();
+            const aspect = document.getElementById('gen-aspect').value;
+
+            if (!prompt) {
+                showToast("Please enter a text prompt to generate!", "error");
+                return;
+            }
+
+            showLoader("Creating New AI Art...", "Synthesizing from text description");
+
+            try {
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [{ text: prompt }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ['IMAGE'],
+                        imageConfig: { aspectRatio: aspect }
+                    }
+                };
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const imagePart = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+                if (imagePart && imagePart.inlineData) {
+                    const newBase64 = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                    const img = new Image();
+                    img.onload = function() {
+                        initCanvasWithImage(img);
+                        pushHistoryState();
+                        hideLoader();
+                        showToast("New image generated!");
+                    };
+                    img.src = newBase64;
+                } else {
+                    throw new Error("No image generated.");
+                }
+            } catch (err) {
+                console.error(err);
+                hideLoader();
+                showToast("Generation failed: " + err.message, "error");
+            }
+        }
+
+        async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, options);
+                    if (res.ok) return res;
+                    if (res.status === 429 && i < retries - 1) {
+                        await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
+                        continue;
+                    }
+                    return res;
+                } catch (err) {
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
+                }
+            }
+        }
+
+        function pushHistoryState() {
+            const dataUrl = mainCanvas.toDataURL('image/png');
+            historyStack = historyStack.slice(0, historyIndex + 1);
+            historyStack.push(dataUrl);
+            historyIndex++;
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                loadHistoryState(historyStack[historyIndex]);
+            }
+        }
+
+        function redo() {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                loadHistoryState(historyStack[historyIndex]);
+            }
+        }
+
+        function loadHistoryState(dataUrl) {
+            const img = new Image();
+            img.onload = function() {
+                currentImage = img;
+                ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+                ctx.drawImage(img, 0, 0);
+                updateUndoRedoButtons();
+                showToast("Action reverted");
+            };
+            img.src = dataUrl;
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('btn-undo').disabled = historyIndex <= 0;
+            document.getElementById('btn-redo').disabled = historyIndex >= historyStack.length - 1;
+        }
+
+        function toggleCompareMode() {
+            isCompareMode = !isCompareMode;
+            const compContainer = document.getElementById('compare-container');
+            const compTxt = document.getElementById('compare-txt');
+
+            if (isCompareMode) {
+                document.getElementById('compare-before-img').src = originalImageDataUrl;
+                compContainer.classList.remove('hidden');
+                compTxt.innerText = "Exit Compare";
+                showToast("Comparing with original image");
+            } else {
+                compContainer.classList.add('hidden');
+                compTxt.innerText = "Split Compare";
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tool-tab-btn').forEach(btn => {
+                btn.classList.remove('text-brand-500', 'bg-brand-500/10');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-400');
+                activeNav.classList.add('text-brand-500', 'bg-brand-500/10');
+            }
+
+            // Toggle Inpainting canvas pointer events
+            isInpaintingMode = (tabId === 'inpaint-tab');
+            maskCanvas.style.pointerEvents = isInpaintingMode ? 'auto' : 'none';
+        }
+
+        function zoomCanvas(delta) {
+            zoomLevel = Math.max(0.5, Math.min(3.0, zoomLevel + delta));
+            applyZoom();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1.0;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const wrapper = document.getElementById('workspace-container');
+            wrapper.style.transform = `scale(${zoomLevel})`;
+            document.getElementById('zoom-level').innerText = `${Math.round(zoomLevel * 100)}%`;
+        }
+
+        function exportImage() {
+            if (!isImageLoaded) return;
+            const link = document.createElement('a');
+            link.download = `lumina-edited-${Date.now()}.png`;
+            link.href = mainCanvas.toDataURL('image/png', 1.0);
+            link.click();
+            showToast("Photo exported in High Definition!");
+        }
+
+        function showLoader(title, subtext) {
+            document.getElementById('loader-status').innerText = title;
+            document.getElementById('loader-subtext').innerText = subtext;
+            document.getElementById('ai-loader').classList.remove('hidden');
+        }
+
+        function hideLoader() {
+            document.getElementById('ai-loader').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast-msg');
+            const toastText = document.getElementById('toast-text');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastText.innerText = message;
+            if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
